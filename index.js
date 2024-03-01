@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
+const fs = require('fs');
 
 const app = express();
 const port = 3000;
