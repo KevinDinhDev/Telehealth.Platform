@@ -187,6 +187,7 @@ app.get('/dashboard', verifyToken, (req, res) => {
     }
 });
 
+       
 // Schedule appointment route
 app.post('/schedule-appointment', verifyToken, (req, res) => {
     const { date, time, participants, doctorId, patientId, scheduledDate, updatedDate } = req.body;
@@ -246,26 +247,40 @@ app.post('/schedule-appointment', verifyToken, (req, res) => {
                     const patientUserId = userIdResult[0].user_id;
 
                     connection.query(associateQuery, [patientUserId, appointmentId], (associateError) => {
-                        connection.release();
+                        // Retrieve patient and doctor information for sending notifications
+                        const patientInfoQuery = 'SELECT * FROM patients WHERE patient_id = ?';
+                        const doctorInfoQuery = 'SELECT * FROM doctors WHERE doctor_id = ?';
 
-                        if (associateError) {
-                            console.error('Error associating patient with appointment:', associateError);
-                            return res.status(500).json({ error: 'Error associating patient with appointment' });
-                        }
-
-                        // Retrieve patient email for sending notifications
-                        const emailQuery = 'SELECT email FROM patients WHERE patient_id = ?';
-                        connection.query(emailQuery, [patientId], (emailError, emailResult) => {
-                            if (emailError) {
-                                console.error('Error retrieving patient email:', emailError);
-                            } else if (emailResult.length > 0) {
-                                const patientEmail = emailResult[0].email;
-                                // Send email notification
-                                sendAppointmentNotification(patientEmail, date, time);
+                        connection.query(patientInfoQuery, [patientId], (patientInfoError, patientInfoResult) => {
+                            if (patientInfoError || patientInfoResult.length === 0) {
+                                connection.release();
+                                console.error('Error retrieving patient information:', patientInfoError);
+                                return res.status(500).json({ error: 'Error retrieving patient information' });
                             }
-                        });
 
-                        return res.json({ message: 'Appointment scheduled successfully', appointmentId });
+                            const patientInfo = patientInfoResult[0];
+
+                            connection.query(doctorInfoQuery, [doctorId], (doctorInfoError, doctorInfoResult) => {
+                                connection.release();
+
+                                if (doctorInfoError || doctorInfoResult.length === 0) {
+                                    console.error('Error retrieving doctor information:', doctorInfoError);
+                                    return res.status(500).json({ error: 'Error retrieving doctor information' });
+                                }
+
+                                const doctorInfo = doctorInfoResult[0];
+
+                                // Send email notification to patient
+                                sendAppointmentNotification(patientInfo.email, date, time, true);
+
+                                // Send comprehensive email notification to doctor
+                                sendAppointmentNotification(doctorInfo.email, date, time, false, {
+                                    firstName: patientInfo.first_name,
+                                    lastName: patientInfo.last_name,
+                                    email: patientInfo.email,
+                                });
+                            });
+                        });
                     });
                 });
             });
@@ -273,18 +288,27 @@ app.post('/schedule-appointment', verifyToken, (req, res) => {
     });
 });
 
-
-
-
-
 // Function to send email notification
-function sendAppointmentNotification(patientEmail, date, time) {
-    const mailOptions = {
-        from: 'telehealth.platform.health@gmail.com',
-        to: patientEmail,  // Fixing the recipient email
-        subject: 'Appointment Scheduled - Telehealth Platform',
-        text: `Your appointment is scheduled for ${date} at ${time}. Please log in to the Telehealth Platform for further details.`,
-    };
+function sendAppointmentNotification(email, date, time, isPatient, patientInfo = null) {
+    let mailOptions;
+
+    if (isPatient) {
+        // Patient notification
+        mailOptions = {
+            from: 'telehealth.platform.health@gmail.com',
+            to: email,
+            subject: 'Appointment Scheduled - Telehealth Platform',
+            text: `Your appointment is scheduled for ${date} at ${time}. Please log in to the Telehealth Platform for further details.`,
+        };
+    } else {
+        // Doctor notification
+        mailOptions = {
+            from: 'telehealth.platform.health@gmail.com',
+            to: email,
+            subject: 'New Appointment Scheduled - Telehealth Platform',
+            text: `A new appointment is scheduled for your attention:\n\nPatient Information:\nName: ${patientInfo.firstName} ${patientInfo.lastName}\nEmail: ${patientInfo.email}\n\nAppointment Details:\nDate: ${date}\nTime: ${time}\n\nPlease log in to the Telehealth Platform for further details.`,
+        };
+    }
 
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
@@ -311,17 +335,35 @@ app.put('/update-appointment', verifyToken, (req, res) => {
             return res.status(500).json({ error: 'Internal Server Error' });
         }
 
-        // Retrieve the patient's email for sending notifications
-        const patientEmailQuery = 'SELECT email FROM patients WHERE user_id = (SELECT user_id FROM user_appointments WHERE appointment_id = ?)';
-        connection.query(patientEmailQuery, [appointmentId], (emailError, emailResult) => {
-            if (emailError) {
+        // Retrieve the patient's and doctor's information for sending notifications
+        const appointmentInfoQuery = `
+            SELECT
+                p.email as patient_email,
+                d.email as doctor_email,
+                p.first_name as patient_first_name,
+                p.last_name as patient_last_name
+            FROM patients p
+            JOIN appointments a ON p.patient_id = a.patient_id
+            JOIN doctors d ON d.doctor_id = a.doctor_id
+            WHERE a.appointment_id = ?
+        `;
+
+        console.log('Appointment ID:', appointmentId);
+
+        connection.query(appointmentInfoQuery, [appointmentId], (infoError, infoResult) => {
+            if (infoError) {
                 connection.release();
-                console.error('Error retrieving patient email:', emailError);
-                return res.status(500).json({ error: 'Error retrieving patient email' });
+                console.error('Error retrieving appointment information:', infoError);
+                return res.status(500).json({ error: 'Error retrieving appointment information' });
             }
 
-            if (emailResult.length > 0) {
-                const patientEmail = emailResult[0].email;
+            console.log('Query Result:', infoResult);
+
+            if (infoResult.length > 0) {
+                const patientEmail = infoResult[0].patient_email;
+                const doctorEmail = infoResult[0].doctor_email;
+                const patientFirstName = infoResult[0].patient_first_name;
+                const patientLastName = infoResult[0].patient_last_name;
 
                 // Update appointment in MySQL
                 const updateQuery = 'UPDATE appointments SET time = ?, updated_date = ? WHERE appointment_id = ?';
@@ -333,33 +375,55 @@ app.put('/update-appointment', verifyToken, (req, res) => {
                         return res.status(500).json({ error: 'Error updating appointment' });
                     }
 
-                    // Send email notification
-                    sendUpdateNotification(patientEmail, newTime, updatedDate);
+                    if (result.affectedRows === 0) {
+                        console.error('Appointment not found for update:', appointmentId);
+                        return res.status(404).json({ error: 'Appointment not found for update' });
+                    }
+
+                    console.log('Appointment updated successfully');
+
+                    // Send email notifications
+                    sendUpdateNotification(patientEmail, newTime, updatedDate, 'Patient');
+                    sendUpdateNotification(doctorEmail, newTime, updatedDate, 'Doctor', patientFirstName, patientLastName, { patientEmail, appointmentId });
 
                     return res.json({ message: 'Appointment updated successfully' });
                 });
             } else {
                 connection.release();
-                return res.status(404).json({ error: 'Patient not found for the appointment' });
+                console.error('Patient or doctor not found for the appointment:', appointmentId);
+                return res.status(404).json({ error: 'Patient or doctor not found for the appointment' });
             }
         });
     });
 });
 
 // Function to send email notification for appointment updates
-function sendUpdateNotification(patientEmail, newTime, updatedDate) {
-    const mailOptions = {
-        from: 'telehealth.platform.health@gmail.com',
-        to: patientEmail,
-        subject: 'Appointment Update - Telehealth Platform',
-        text: `Your appointment has been updated. The new time is ${newTime} on ${updatedDate}. Log in to the Telehealth Platform for more details.`,
-    };
+function sendUpdateNotification(email, newTime, updatedDate, recipientType, patientFirstName = null, patientLastName = null, additionalInfo = null) {
+    let mailOptions;
+
+    if (recipientType === 'Patient') {
+        mailOptions = {
+            from: 'telehealth.platform.health@gmail.com',
+            to: email,
+            subject: `Appointment Update - Telehealth Platform (${recipientType})`,
+            text: `Your appointment has been updated. The new time is ${newTime} on ${updatedDate}. Log in to the Telehealth Platform for more details.`,
+        };
+    } else if (recipientType === 'Doctor') {
+        const patientEmail = additionalInfo && additionalInfo.patientEmail;
+        const appointmentId = additionalInfo && additionalInfo.appointmentId;
+        mailOptions = {
+            from: 'telehealth.platform.health@gmail.com',
+            to: email,
+            subject: `Appointment Update - Telehealth Platform (${recipientType})`,
+            text: `The appointment with patient ${patientFirstName} ${patientLastName} has been updated. The new time is ${newTime} on ${updatedDate}. Log in to the Telehealth Platform for more details.\nPatient Email: ${patientEmail}\nAppointment ID: ${appointmentId}`,
+        };
+    }
 
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-            console.error('Error sending email:', error);
+            console.error(`Error sending ${recipientType.toLowerCase()} email:`, error);
         } else {
-            console.log('Email sent:', info.response);
+            console.log(`${recipientType} Email sent:`, info.response);
         }
     });
 }
@@ -368,7 +432,7 @@ function sendUpdateNotification(patientEmail, newTime, updatedDate) {
 
 // Delete appointment route
 app.delete('/delete-appointment', verifyToken, (req, res) => {
-    const { appointment_id } = req.body; // Update the key to appointment_id
+    const { appointment_id } = req.body;
     const userRole = req.user.role;
 
     // Check user role
@@ -416,42 +480,63 @@ app.delete('/delete-appointment', verifyToken, (req, res) => {
 
                 console.log('Appointment deleted successfully');
 
-                // Send email notification for appointment cancellation
-                sendCancellationNotification(doctor_id, patient_id, date, time);
+                // Retrieve doctor's email
+                const emailQueryDoctor = 'SELECT email FROM doctors WHERE doctor_id = ?';
+                connection.query(emailQueryDoctor, [doctor_id], (doctorError, doctorResult) => {
+                    if (doctorError) {
+                        console.error('Error retrieving doctor email:', doctorError);
+                        return res.status(500).json({ error: 'Error retrieving doctor email' });
+                    }
 
-                return res.json({ message: 'Appointment deleted successfully' });
+                    if (doctorResult.length === 0) {
+                        console.error('Doctor email not found');
+                        return res.status(500).json({ error: 'Doctor email not found' });
+                    }
+
+                    const doctorEmail = doctorResult[0].email;
+
+                    // Retrieve patient's email
+                    const emailQueryPatient = 'SELECT email FROM patients WHERE patient_id = ?';
+                    connection.query(emailQueryPatient, [patient_id], (patientError, patientResult) => {
+                        if (patientError) {
+                            console.error('Error retrieving patient email:', patientError);
+                            return res.status(500).json({ error: 'Error retrieving patient email' });
+                        }
+
+                        if (patientResult.length === 0) {
+                            console.error('Patient email not found');
+                            return res.status(500).json({ error: 'Patient email not found' });
+                        }
+
+                        const patientEmail = patientResult[0].email;
+
+                        // Send email notification to both doctor and patient
+                        const subject = `Appointment Cancellation - Telehealth Platform`;
+                        let text = `Your appointment scheduled for ${date} at ${time} has been cancelled. We apologize for any inconvenience.`;
+
+                        sendCancellationNotification(doctorEmail, subject, text, 'Doctor', patientEmail, appointment_id, date, time);
+                        sendCancellationNotification(patientEmail, subject, text, 'Patient', null, null, date, time);
+
+                        return res.json({ message: 'Appointment deleted successfully' });
+                    });
+                });
             });
         });
     });
 });
 
-// Function to send email notification for appointment cancellation
-function sendCancellationNotification(doctorId, patientId, date, time) {
-    // Retrieve doctor's and patient's email for sending notifications
-    const emailQuery = 'SELECT email FROM patients WHERE user_id = ? UNION SELECT email FROM doctors WHERE user_id = ?';
-    pool.query(emailQuery, [patientId, doctorId], (emailError, emailResult) => {
-        if (emailError) {
-            console.error('Error retrieving emails:', emailError);
-            return;
-        }
-
-        const doctorEmail = emailResult[0].email;
-        const patientEmail = emailResult[1].email;
-
-        // Send email notification to both doctor and patient
-        sendCancellationEmail(doctorEmail, date, time, 'Doctor');
-        sendCancellationEmail(patientEmail, date, time, 'Patient');
-    });
-}
-
 // Function to send email for appointment cancellation
-function sendCancellationEmail(email, date, time, recipientType) {
+function sendCancellationNotification(email, subject, text, recipientType, patientEmail = null, appointmentId = null, date, time) {
     const mailOptions = {
         from: 'telehealth.platform.health@gmail.com',
         to: email,
-        subject: `Appointment Cancellation - Telehealth Platform (${recipientType})`,
-        text: `Your appointment scheduled for ${date} at ${time} has been cancelled. We apologize for any inconvenience.`,
+        subject: `${subject} - Telehealth Platform (${recipientType})`,
+        text,
     };
+
+    if (recipientType === 'Doctor') {
+        mailOptions.text += `\nAppointment Details:\nDate: ${date}\nTime: ${time}\nPatient Email: ${patientEmail}\nAppointment ID: ${appointmentId}`;
+    }
 
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
