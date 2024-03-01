@@ -1,0 +1,23 @@
+{
+  "name": "telehealth-platform",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.2",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.2.0",
+    "mysql": "^2.18.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.11",
+    "socket.io": "^4.7.4"
+  }
+}

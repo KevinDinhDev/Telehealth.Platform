@@ -1,0 +1,82 @@
+User Authentication: Done by implementing bcrypt
+
+Enhance the user registration and login routes.
+Implement password hashing for security (consider using libraries like bcrypt).
+Store hashed passwords in the MySQL database.
+Improve error handling and provide meaningful feedback to users.
+
+User Roles: Finished, implemented jwt tokens and /dashboard + roles in the user sql table
+Define roles for users, such as "doctor" and "patient."
+Extend the user schema in MySQL to include role information.
+Adjust routes and functionalities based on user roles.
+
+Appointments: added and connected appointments to mysql database, patients can set up appointments, and doctors+patients can cancel
+Create routes and logic for scheduling appointments.
+Design the MySQL schema for storing appointment information (e.g., date, time, participants).
+Implement validation to avoid scheduling conflicts.
+
+Email Notifications:
+Integrate an email service (like Nodemailer) for sending appointment notifications.
+Send confirmation emails when appointments are scheduled.
+Include a link to the video call platform in the email.
+
+Video Call Integration:
+Choose a video call service (e.g., Zoom, WebRTC) for telehealth appointments.
+Generate unique video call links for each appointment.
+Include the video call link in appointment details.
+
+Dashboard:
+Create a dashboard for doctors and patients to view upcoming appointments.
+Display relevant information such as appointment time, participant names, and status.
+
+Enhance Security:
+Implement secure practices, such as validating user input and protecting against common web vulnerabilities.
+Utilize HTTPS to secure data transmission.
+
+Testing:
+Perform thorough testing of your application, covering various scenarios.
+Test user registration, login, appointment scheduling, and email notifications.
+
+Deployment:
+Consider deploying your Telehealth Platform to a hosting service (e.g., AWS, Heroku) for public access.
+Configure environment variables for sensitive information (e.g., database credentials, secret keys).
+
+Documentation:
+Document your API endpoints, database schema, and any other essential information.
+Include instructions for setting up and running the project.
+
+Future Enhancements:
+Plan for future features and improvements, such as prescription management, medical record storage, or integration with health APIs.
+
+
+
+Finish Core Backend Functionality:
+
+Ensure that all your backend functionalities related to appointments, users, and basic security are thoroughly implemented and tested.
+Email Notifications:
+
+Proceed with integrating email notifications. This is a crucial step for providing users with confirmation and details about their appointments.
+Video Call Integration:
+
+After implementing email notifications, you can move on to video call integration. This can be considered an essential feature for telehealth platforms. Generate unique video call links for each appointment and include them in the appointment details.
+Dashboard:
+
+Once the email notifications and video call integration are in place, start developing the dashboard. The dashboard will provide a user-friendly interface for doctors and patients to view and manage upcoming appointments.
+Frontend Development:
+
+At this stage, you can start developing the frontend of your website. The frontend should interact with the backend through your well-defined API endpoints. This includes pages for user registration, login, scheduling appointments, viewing upcoming appointments, and any other necessary features.
+Enhance Security:
+
+As you develop the frontend, make sure to enhance security practices on both the frontend and backend. Implement secure practices, input validation, and protect against common web vulnerabilities.
+Testing:
+
+Conduct comprehensive testing of the entire system, including frontend and backend functionalities. Ensure that all components work seamlessly together.
+Deployment:
+
+Deploy your Telehealth Platform to a hosting service, configure environment variables, and make it publicly accessible.
+Documentation:
+
+Document your API endpoints, database schema, and any other essential information. Include instructions for setting up and running the entire project.
+Future Enhancements:
+
+Consider planning and implementing additional features or improvements based on user feedback and your vision for the platform.
