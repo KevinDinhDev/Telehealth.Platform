@@ -8,30 +8,60 @@ const nodemailer = require('nodemailer');
 const app = express();
 const port = 3000;
 
+// Middleware to parse JSON requests
+app.use(bodyParser.json());
+
+// Load configuration from a single JSON file
+const config = JSON.parse(fs.readFileSync('config.json'));
+
 // Create MySQL connection pool
 const pool = mysql.createPool({
     connectionLimit: 10,
-    host: 'localhost',
-    user: 'telehealth_platform',
-    password: 'telehealth_platform',
-    database: 'telehealth_platform',
+    host: config.mysql.host,
+    user: config.mysql.user,
+    password: config.mysql.password,
+    database: config.mysql.database,
 });
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'telehealth.platform.health@gmail.com',
-        pass: 'luwb mkah wudi dvcu',
+        user: config.email.user,
+        pass: config.email.pass,
     },
 });
-
-// Middleware to parse JSON requests
-app.use(bodyParser.json());
 
 // Basic route
 app.get('/', (req, res) => {
     res.send('Hello, Telehealth Platform!');
 });
+
+// Verify JWT middleware
+function verifyToken(req, res, next) {
+    const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
+
+    if (!token) {
+        return res.status(403).json({ error: 'Token not provided' });
+    }
+
+    console.log('Received Token:', token);
+
+    jwt.verify(token, config.jwt.secret, (err, decoded) => {
+        if (err) {
+            if (err.name === 'TokenExpiredError') {
+                return res.status(401).json({ error: 'Token has expired' });
+            } else {
+                console.error('JWT Verification Error:', err.message);
+                return res.status(401).json({ error: 'Failed to authenticate token' });
+            }
+        }
+
+        console.log('Decoded Token:', decoded); // Logs decoded payload
+
+        req.user = decoded;
+        next();
+    });
+}
 
 // Registering a patient
 app.post('/register-patient', (req, res) => {
@@ -157,7 +187,7 @@ app.post('/login', (req, res) => {
                         res.status(500).json({ error: 'Internal Server Error' });
                     } else if (passwordMatch) {
                         // Create and send a JWT token
-                        const token = jwt.sign({ username, role: userRole }, 'adminkeys');
+                        const token = jwt.sign({ username, role: userRole }, config.jwt.secret);
                         console.log('Received Token:', token); // Log received token
                         res.json({ token });
                     } else {
@@ -548,32 +578,6 @@ function sendCancellationNotification(email, subject, text, recipientType, patie
 }
 
 
-// Verify JWT middleware
-function verifyToken(req, res, next) {
-    const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
-
-    if (!token) {
-        return res.status(403).json({ error: 'Token not provided' });
-    }
-
-    console.log('Received Token:', token);
-
-    jwt.verify(token, 'adminkeys', (err, decoded) => {
-        if (err) {
-            if (err.name === 'TokenExpiredError') {
-                return res.status(401).json({ error: 'Token has expired' });
-            } else {
-                console.error('JWT Verification Error:', err.message);
-                return res.status(401).json({ error: 'Failed to authenticate token' });
-            }
-        }
-
-        console.log('Decoded Token:', decoded); // Logs decoded payload
-
-        req.user = decoded;
-        next();
-    });
-}
 
 
 

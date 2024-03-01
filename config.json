@@ -1,0 +1,15 @@
+{
+  "mysql": {
+    "host": "localhost",
+    "user": "telehealth_platform",
+    "password": "telehealth_platform",
+    "database": "telehealth_platform"
+  },
+  "email": {
+    "user": "telehealth.platform.health@gmail.com",
+    "pass": "luwb mkah wudi dvcu"
+  },
+  "jwt": {
+    "secret": "adminkeys"
+  }
+}
