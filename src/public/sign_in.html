@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="sign_in_styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+</head>
+<body>
+
+  <!-- Header with Logo -->
+  <header class="top-bar">
+    <div class="container">
+      <a href="index.html">
+        <img src="logo.jpg" alt="Telehealth Platform Logo">
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="container">
+    <h2>Login</h2>
+    <p>Please sign in</p>
+
+    <!-- Sign-in Form -->
+    <form id="login-form">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="Username" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="Password" required>
+
+      <input type="submit" value="Sign In">
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      // Make a request to the server
+      fetch('/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      }).then(response => {
+          if (!response.ok) {
+            throw new Error('Invalid credentials');
+          }
+          return response.json();
+        }).then(data => {
+          // Assuming the server sends back a token on successful login
+          const token = data.token;
+          const firstName = data.firstName.charAt(0).toUpperCase() + data.firstName.substring(1);
+
+          
+
+          // Store the token (you can use sessionStorage or localStorage)
+          localStorage.setItem('token', token);
+          localStorage.setItem('firstName', firstName);
+
+          // Redirect to the home page or another route
+          window.location.href = '/index.html';
+          }).catch(error => {
+            console.error('Login failed:', error);
+            alert('Login failed. Please check your credentials.');
+            });
+    });
+  </script>
+
+</body>
+</html>

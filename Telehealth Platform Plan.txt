@@ -20,14 +20,16 @@ Integrate an email service (like Nodemailer) for sending appointment notificatio
 Send confirmation emails when appointments are scheduled.
 Include a link to the video call platform in the email.
 
-Video Call Integration:
-Choose a video call service (e.g., Zoom, WebRTC) for telehealth appointments.
-Generate unique video call links for each appointment.
-Include the video call link in appointment details.
+
 
 Dashboard:
 Create a dashboard for doctors and patients to view upcoming appointments.
 Display relevant information such as appointment time, participant names, and status.
+
+Video Call Integration:
+Choose a video call service (e.g., Zoom, WebRTC) for telehealth appointments.
+Generate unique video call links for each appointment.
+Include the video call link in appointment details.
 
 Enhance Security:
 Implement secure practices, such as validating user input and protecting against common web vulnerabilities.

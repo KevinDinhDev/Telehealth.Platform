@@ -5,15 +5,24 @@ const mysql = require('mysql');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
+const axios = require('axios');
+const util = require('util');
 
 const app = express();
 const port = 3000;
 
-// Middleware to parse JSON requests
-app.use(bodyParser.json());
+const bcryptHash = util.promisify(bcrypt.hash);
+
+
+  
+// something lara taught me (READ ON IT)
+app.use(express.static("public"));
+
+// Add this middleware to parse JSON requests
+app.use(express.json());
 
 // Load configuration from a single JSON file
-const config = JSON.parse(fs.readFileSync('config.json'));
+const config = JSON.parse(fs.readFileSync('../config.json'));
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
@@ -32,10 +41,16 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Basic route
-app.get('/', (req, res) => {
-    res.send('Hello, Telehealth Platform!');
-});
+// Zoom app credentials
+const clientId = config.zoom.clientId;
+const clientSecret = config.zoom.clientSecret;
+const redirectUri = config.zoom.redirectUri;
+
+// Token Chest
+//Insert.Read.Delete
+const tokens = {};
+
+
 
 // Verify JWT middleware
 function verifyToken(req, res, next) {
@@ -64,16 +79,42 @@ function verifyToken(req, res, next) {
     });
 }
 
-// Registering a patient
-app.post('/register-patient', (req, res) => {
-    const { username, password, role, firstName, lastName, patientCondition, phoneNumber, email, address, city, state, zipCode } = req.body;
+// Endpoint to check if a username is already taken
+app.get('/check-username', (req, res) => {
+    const requestedUsername = req.query.username;
 
-    // Hash the password
-    bcrypt.hash(password, 10, (err, hashedPassword) => {
-        if (err) {
-            console.error('Error hashing password:', err);
+    // Use connection from pool
+    pool.getConnection((connectionError, connection) => {
+        if (connectionError) {
+            console.error('Error getting MySQL connection:', connectionError);
             return res.status(500).json({ error: 'Internal Server Error' });
         }
+
+        // Check if the requested username is already taken
+        const isTakenQuery = 'SELECT * FROM users WHERE username = ?';
+        connection.query(isTakenQuery, [requestedUsername], (queryError, results) => {
+            connection.release();
+
+            if (queryError) {
+                console.error('Error checking username:', queryError);
+                return res.status(500).json({ error: 'Error checking username' });
+            }
+
+            // If results array is not empty, the username is already taken
+            const isTaken = results.length > 0;
+            res.json({ isTaken });
+        });
+    });
+});
+
+// Registering a patient
+app.post('/register-patient', async (req, res) => {
+    console.log('Request Body:', req.body);
+    try {
+        const { username, password, role, firstName, lastName, patientCondition, phoneNumber, email, address, city, state, zipCode } = req.body;
+
+        // Hash the password asynchronously
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         // Use connection from pool
         pool.getConnection((connectionError, connection) => {
@@ -106,7 +147,10 @@ app.post('/register-patient', (req, res) => {
                 });
             });
         });
-    });
+    } catch (error) {
+        console.error('Unexpected error during patient registration:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
 });
 
 
@@ -150,6 +194,7 @@ app.post('/register-doctor', (req, res) => {
                     }
 
                     return res.json({ message: 'Doctor registered successfully' });
+
                 });
             });
         });
@@ -170,37 +215,61 @@ app.post('/login', (req, res) => {
         }
 
         // Find the user by username
-        const query = 'SELECT * FROM users WHERE username = ?';
+        const query = 'SELECT u.user_id, u.username, u.password, u.role, ' +
+            'CASE ' +
+            'WHEN u.role = "patient" THEN p.first_name ' +
+            'WHEN u.role = "doctor" THEN d.first_name ' +
+            'ELSE NULL ' +
+            'END AS first_name ' +
+            'FROM users u ' +
+            'LEFT JOIN patients p ON u.user_id = p.user_id ' +
+            'LEFT JOIN doctors d ON u.user_id = d.user_id ' +
+            'WHERE u.username = ?';
         connection.query(query, [username], (queryError, results) => {
             connection.release();
 
             if (queryError) {
                 console.error('Error finding user:', queryError);
                 res.status(500).json({ error: 'Error finding user' });
-            } else if (results.length > 0) {
-                // Compare passwords
-                const hashedPassword = results[0].password;
-                const userRole = results[0].role;
-
-                bcrypt.compare(password, hashedPassword, (compareError, passwordMatch) => {
-                    if (compareError) {
-                        console.error('Error comparing passwords:', compareError);
-                        res.status(500).json({ error: 'Internal Server Error' });
-                    } else if (passwordMatch) {
-                        // Create and send a JWT token
-                        const token = jwt.sign({ username, role: userRole }, config.jwt.secret);
-                        console.log('Received Token:', token); // Log received token
-                        res.json({ token });
-                    } else {
-                        res.status(401).json({ error: 'Invalid credentials' });
-                    }
-                });
             } else {
-                res.status(401).json({ error: 'Invalid credentials' });
+                console.log('Query Results:', results); // Log query results
+
+                if (results.length > 0) {
+                    // Compare passwords
+                    const hashedPassword = results[0].password;
+                    const userRole = results[0].role;
+                    const userFirstName = results[0].first_name; // Retrieve first name
+                    
+                    console.log('Retrieved User Data:', { username, userRole, userFirstName }); // Log retrieved user data
+
+                    bcrypt.compare(password, hashedPassword, (compareError, passwordMatch) => {
+                        if (compareError) {
+                            console.error('Error comparing passwords:', compareError);
+                            res.status(500).json({ error: 'Internal Server Error' });
+                        } else if (passwordMatch) {
+                            // Create and send a JWT token along with user's first name
+                            const token = jwt.sign({ username, role: userRole, firstName: userFirstName }, config.jwt.secret);
+                            tokens.username=token;
+                            console.log('Received Token:', token); // Log received token
+                            res.json({ token: token, firstName: userFirstName }); // Include first name in the response
+                        } else {
+                            res.status(401).json({ error: 'Invalid credentials' });
+                        }
+                    });
+                } else {
+                    res.status(401).json({ error: 'Invalid credentials' });
+                }
             }
         });
     });
 });
+
+
+// Sign-out for Token Deletion (unfinished 3/8 12:16am)
+app.post('/sign-out', verifyToken, (req, res) => {
+    const { username, token } = req.body;
+
+})
 
 // Protected route example (requires a valid JWT)
 app.get('/dashboard', verifyToken, (req, res) => {
@@ -578,9 +647,33 @@ function sendCancellationNotification(email, subject, text, recipientType, patie
     });
 }
 
-
-
-
+// Callback route
+app.get('/zoom/oauth/callback', async (req, res) => {
+    try {
+      const code = req.query.code;
+  
+      // Exchange authorization code for access token
+      const tokenResponse = await axios.post('https://zoom.us/oauth/token', null, {
+        params: {
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: redirectUri,
+          client_id: clientId,
+          client_secret: clientSecret,
+        },
+      });
+  
+      // Store the access token securely
+      const accessToken = tokenResponse.data.access_token;
+  
+      // Now I can use accessToken to make Zoom API requests
+  
+      res.send('Authorization successful!');
+    } catch (error) {
+      console.error('Error during OAuth callback:', error);
+      res.status(500).send('Internal Server Error');
+    }
+  });
 
 // Start the server
 app.listen(port, () => {

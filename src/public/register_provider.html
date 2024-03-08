@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Provider Registration</title>
+  <link rel="stylesheet" href="provider_styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+</head>
+<body>
+
+ <!-- Header with Logo -->
+ <header class="top-bar">
+    <div class="container">
+        <a href="index.html">
+      <img src="logo.jpg" alt="Telehealth Platform Logo">
+      </a>
+      <a href="javascript:void(0)" onclick="goBack()" class="back-button">&#9665; Back to Home</a>
+    </div>
+  </header>
+
+  <!-- Registration Form -->
+  <div class="container">
+    <h2>Provider Registration</h2>
+    <p>Enter your information just as it appears on your medical license.</p><br>
+    <strong>* Required</strong>
+    <form id="registration-form" method="POST" action="/register-doctor" enctype="application/json" onsubmit="submitForm(event)">
+
+      <div id="usernameAvailabilityMessage"></div>
+      <!-- Username -->
+      <label for="username">Username*</label>
+      <input type="text" id="username" name="username" required>
+
+      <!-- Password -->
+      <label for="password">Password*</label>
+      <input type="password" id="password" name="password" required>
+      
+      <!-- Role Type -->
+      <label for="role">Role*</label>
+      <select id="role" name="role" required>
+      <option value="doctor">Doctor</option>
+      <option value="patient">Patient</option>
+      </select>
+
+      <!-- First Name -->
+      <label for="first_name">First Name*</label>
+      <input type="text" id="first_name" name="firstName" required>
+
+      <!-- Last Name -->
+      <label for="last_name">Last Name*</label>
+      <input type="text" id="last_name" name="lastName" required>
+
+      <!-- Patient Condition -->
+      <label for="specialty">Specialty*</label>
+      <input type="text" id="specialty" name="specialty" required>
+
+      <!-- Phone Number -->
+      <label for="npi">NPI*</label>
+      <input type="tel" id="npi" name="npi" required>
+
+      <!-- Email -->
+      <label for="email">Email*</label>
+      <input type="email" id="email" name="email" required>
+
+      <!-- Address -->
+      <label for="office_number">Office Number*</label>
+      <input type="text" id="office_number" name="officeNumber" required>
+
+      <!-- Submit Button -->
+      <input type="submit" value="Submit">
+    </form>
+  </div>
+
+  <!-- Footer -->
+<footer>
+    <div class="container">
+      <div class="line"></div>
+      <p>&copy; <a> Telehealth Platform, All rights reserved.</a> <a href="ToS.html">Terms of Service</a> <a href="notice_of_privacy_practices.html">Notice of Privacy Practices</a></p></p>
+  </div>
+</footer>
+
+<script>
+async function submitForm(event) {
+    event.preventDefault();
+
+    const form = document.getElementById('registration-form');
+    const formData = new FormData(form);
+    const jsonData = {};
+
+    formData.forEach((value, key) => {
+        jsonData[key] = value;
+    });
+
+    console.log('Data being sent:', jsonData);
+
+    // Check if the username is taken
+    const isUsernameTaken = await checkUsername(jsonData.username);
+
+    // Get the usernameAvailabilityMessage div
+    const messageDiv = document.getElementById('usernameAvailabilityMessage');
+
+    if (isUsernameTaken) {
+        // Display the message on the page
+        messageDiv.innerHTML = '<p style="color: red;">Username already taken. Please choose a different username.</p>';
+    } else {
+        // Clear any previous messages
+        messageDiv.innerHTML = '';
+
+        // Continue with the registration
+        const response = await fetch('/register-doctor', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(jsonData),
+        });
+
+        const result = await response.json();
+        console.log(result);
+
+        // Check if the registration was successful
+        if (response.ok) {
+            window.location.href = '/sign_in.html';
+        } else {
+            console.error('Registration failed:', result);
+            // You can display an error message or take appropriate action
+        }
+    }
+}
+
+async function checkUsername(username) {
+    try {
+        const response = await fetch(`/check-username?username=${username}`);
+        const result = await response.json();
+        
+        console.log('Server Response:', result); // Log the server response
+
+        return result.isTaken;
+    } catch (error) {
+        console.error('Error checking username:', error);
+        return true;
+    }
+}
+
+
+  function goBack() {
+      window.history.back();
+  }
+</script>
+
+</body>
+</html>

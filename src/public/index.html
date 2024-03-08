@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telehealth Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+    <script>
+        // Function to dynamically update the navigation bar based on user authentication status
+function updateNavbar() {
+    const userToken = localStorage.getItem('token');
+    const userFirstName = localStorage.getItem('firstName');
+
+    console.log('User Token:', userToken);
+    console.log('User First Name:', userFirstName);
+
+    if (userToken) {
+        // User is authenticated
+        const nav = document.querySelector('nav');
+        nav.innerHTML = `
+            <div class="container">
+                <h1><a href="index.html"><img src="logo.JPG" alt="Telehealth Platform Logo"></a></h1>
+                <ul>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                    <li class="auth-link"><a href="#" onclick="signOut()">Sign Out</a></li>
+                    <li class="user-welcome">Welcome, ${userFirstName}</li>
+                </ul>
+            </div>
+        `;
+    } else {
+        // User is not authenticated, show the default navigation bar
+        const nav = document.querySelector('nav');
+        nav.innerHTML = `
+            <div class="container">
+                <h1><a href="index.html"><img src="logo.JPG" alt="Telehealth Platform Logo"></a></h1>
+                <ul>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                    <li class="auth-link"><a href="sign_in.html">Sign In</a></li>
+                    <li class="auth-link register">
+                        <a href="register_provider.html" onclick="window.location.href='register_provider.html'; return false;">Register as Provider</a>
+                    </li>
+                    <li class="auth-link register">
+                        <a href="register_patient.html" onclick="window.location.href='register_patient.html'; return false;">Register as Patient</a>
+                    </li>
+                </ul>
+            </div>
+        `;
+    }
+}
+
+        // Function to handle sign-out
+        function signOut() {
+            // Clear user data from localStorage or session storage
+            localStorage.removeItem('token');
+            localStorage.removeItem('firstName');
+
+            // Call the updateNavbar function to reflect changes after sign-out
+            updateNavbar();
+        }
+
+        // Call the updateNavbar function during page load
+        document.addEventListener('DOMContentLoaded', updateNavbar);
+
+
+    </script>
+</head>
+
+<body>
+
+    <!-- Navigation Bar -->
+    <!-- The content will be dynamically updated based on user authentication status -->
+    <nav>
+        <div class="container">
+            <!-- Content updated dynamically using JavaScript -->
+        </div>
+    </nav>
+
+    <!-- Picture Section -->
+    <header class="picture">
+        <div class="container">
+        </div>
+    </header>
+
+    <!-- Welcome Section-->
+    <header class="welcome">
+        <div class="container">
+            <h2 class="header">Welcome to Your Telehealth Platform</h2>
+            <p>Connecting you with healthcare from the comfort of your home</p>
+            <p>Your care is at your fingertips</p>
+        </div>
+    </header>
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <h1>About Our Platform</h1>
+            <p>
+                A Telehealth Platform is a cutting-edge solution designed to elevate the patient experience by
+                providing seamless and efficient access to healthcare services through telehealth technology. This
+                innovative platform enables individuals to connect with healthcare professionals remotely, fostering
+                convenience and accessibility. Through secure video consultations, online appointment scheduling,
+                prescription management, and health records access, the Telehealth Platform empowers users to engage
+                with healthcare services from the comfort of their homes. It represents a transformative approach to
+                healthcare delivery, leveraging technology to bridge the gap between patients and healthcare providers
+                for a more streamlined and patient-centric experience.</p>
+        </div>
+    </section>
+
+    <!-- Secure Video Consultations Section -->
+    <section id="features1" class="features">
+        <div class="container">
+            <div class="feature">
+                <div class="feature-image">
+                    <img src="secure_video_image.jpg" alt="Secure Video Consultations Image">
+                </div>
+                <div class="feature-content">
+                    <h3>Secure Video Consultations</h3>
+                    <p>Connect with healthcare experts effortlessly through our Secure Video Consultations.
+                        Experience convenient, private, and personalized care from anywhere, ensuring your health is a
+                        click away</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Online Appointment Scheduling Section -->
+    <section id="features2" class="features">
+        <div class="container">
+            <div class="feature">
+                <div class="feature-content">
+                    <h3>Online Appointment Scheduling</h3>
+                    <p>Effortlessly manage your healthcare journey with Online Appointment Scheduling. Book
+                        appointments at your convenience, ensuring you have timely access to the care you need, all with
+                        just a few clicks.</p>
+                </div>
+                <div class="feature-image">
+                    <img src="appointment_scheduling_image.jpg" alt="Online Appointment Scheduling Image">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h3>Contact Us</h3>
+            <p>Have questions or need support? Contact our team.</p>
+            <a href="mailto:info@telehealthplatform.com" class="btn">Email Us</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Telehealth Platform, All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
